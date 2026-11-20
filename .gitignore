@@ -1,0 +1,8 @@
+.DS_Store
+.worktrees/
+.claude/plans/
+.claude/settings.local.json
+.playwright-mcp/
+.playwright-profile/
+.impeccable/
+CLAUDE.local.md

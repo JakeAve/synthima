@@ -14,7 +14,7 @@ completely customizable.
 The `main.ts` is made with Deno 2, but has 0 dependencies and can be ran on the
 web, Bun, or Node.
 
-The script requires ~ Deno 1
+The CLI requires ~ Deno 1
 
 ## Exports
 
@@ -46,7 +46,9 @@ getRandom(3); // 0 | 1 | 2
 getRandom("abc"); // 'a' | 'b' | 'c'
 ```
 
-### `letters(length, additionalReqs)`
+### Preset Functions
+
+#### `letters(length, additionalReqs)`
 
 Calls `genChars` with predefined arguments. Length can be overwritten,
 requirements can be added.
@@ -64,7 +66,7 @@ requirements can be added.
 numbers(); // '65167892`
 ```
 
-### `level1(length, additionalReqs)`
+#### `level1(length, additionalReqs)`
 
 Calls `genChars` with predefined arguments. Length can be overwritten,
 requirements can be added.
@@ -73,7 +75,7 @@ requirements can be added.
 level1(); // 'cTOzh*5OY1$6'
 ```
 
-### `level2(length, additionalReqs)`
+#### `level2(length, additionalReqs)`
 
 Calls `genChars` with predefined arguments. Length can be overwritten,
 requirements can be added.
@@ -82,7 +84,7 @@ requirements can be added.
 level2(); // '13sH_O8]vA-r'
 ```
 
-### `level3(length, additionalReqs)`
+#### `level3(length, additionalReqs)`
 
 Calls `genChars` with predefined arguments. Length can be overwritten,
 requirements can be added.
@@ -209,3 +211,23 @@ synthima -l 8 -s 123 -s abc --max 3 # c1c2caac
 ### `-h` `--help`
 
 Pulls up the help.
+
+## Development
+
+```bash
+deno task install:githooks # once per clone: check on commit, test on push
+deno task check
+deno task test
+```
+
+## Releasing
+
+Merges to `main` don't publish. To release, bump `version` in `deno.json` in a
+PR, merge it, then push a matching tag:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The publish workflow checks the tag matches `deno.json`, runs the checks and
+tests, and publishes to JSR.
