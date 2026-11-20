@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+
+[ "$(git branch --show-current)" != main ] || { echo "no commits on main"; exit 1; }
+deno task pre-commit

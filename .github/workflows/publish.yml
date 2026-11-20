@@ -2,8 +2,7 @@ name: Publish
 
 on:
   push:
-    branches:
-      - main
+    tags: ["v*"]
 
 jobs:
   publish:
@@ -13,4 +12,13 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: "2.7.14"
+      - name: Tag matches deno.json version
+        run: |
+          version=$(jq -r .version deno.json)
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != deno.json v$version"; exit 1; }
+      - run: deno task check
+      - run: deno task test
       - run: npx jsr publish

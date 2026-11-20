@@ -209,3 +209,23 @@ synthima -l 8 -s 123 -s abc --max 3 # c1c2caac
 ### `-h` `--help`
 
 Pulls up the help.
+
+## Development
+
+```bash
+deno task install:githooks # once per clone: check on commit, test on push
+deno task check
+deno task test
+```
+
+## Releasing
+
+Merges to `main` don't publish. To release, bump `version` in `deno.json` in a
+PR, merge it, then push a matching tag:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The publish workflow checks the tag matches `deno.json`, runs the checks and
+tests, and publishes to JSR.

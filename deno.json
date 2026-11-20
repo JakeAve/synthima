@@ -4,15 +4,22 @@
   "exports": "./main.ts",
   "license": "MIT",
   "description": "Generate customizable password strings using crypto.getRandomValues",
+  "exclude": [".worktrees/", ".claude/"],
   "publish": {
     "exclude": [
-      "main_tests.ts",
+      "main_test.ts",
       "scripts/*",
-      ".github/*"
+      ".github/*",
+      ".githooks/*"
     ]
   },
   "tasks": {
-    "dev": "deno run --watch main.ts"
+    "dev": "deno run --watch main.ts",
+    "check": "deno fmt --check && deno lint && deno check main.ts scripts/",
+    "test": "deno test",
+    "pre-commit": "deno task check",
+    "pre-push": "deno task check && deno task test",
+    "install:githooks": "git config core.hooksPath .githooks"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
