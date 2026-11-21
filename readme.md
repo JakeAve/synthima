@@ -36,6 +36,19 @@ genChars(8, [
 ]); // '11333232'
 ```
 
+How characters are chosen:
+
+- Each set first contributes its `min` characters (default 1), chosen uniformly
+  from that set.
+- Every remaining position is chosen uniformly from the pooled characters of all
+  sets that haven't reached their `max`. A big set is therefore proportionally
+  more likely than a small one. A character listed in two sets gets double
+  weight, which is how you bias toward it.
+- `max: 0` excludes a set (write `min: 0, max: 0`; the default `min` of 1 would
+  throw). An empty `charSet` throws a `RangeError`.
+- `length`, `min` and `max` count code points, not UTF-16 units.
+- The requirements you pass in are never modified.
+
 ### `getRandom(input)`
 
 Generates a random integer or returns a random character from a string.
@@ -45,6 +58,9 @@ getRandom(2); // 0 | 1
 getRandom(3); // 0 | 1 | 2
 getRandom("abc"); // 'a' | 'b' | 'c'
 ```
+
+Uses rejection sampling, so every value is exactly equally likely. Throws a
+`RangeError` for non-integers, values below 1 or above 2^32, and empty strings.
 
 ### Preset Functions
 
