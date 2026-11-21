@@ -3,7 +3,7 @@
  *
  * @property {string} charSet - A string of characters
  * @property {number|undefined} [min = 1] - The minimum instances one of the characters from the charSet may appear
- * @property {number|undefined} [max = undefined] - The maximum instances one of the characters from the charSet may appear
+ * @property {number|undefined} [max = undefined] - The maximum instances one of the characters from the charSet may appear. 0 is the same as omitting it (no limit)
  */
 export interface Requirement {
   charSet: string;
@@ -11,7 +11,9 @@ export interface Requirement {
   max?: number;
 }
 
-interface FilledRequirement extends Requirement {
+interface Slot {
+  chars: string[];
+  max: number | undefined;
   used: number;
 }
 
@@ -36,41 +38,49 @@ interface FilledRequirement extends Requirement {
  * @example
  * genChars(8, [{ charSet: "abc", min: 0 }, { charSet: "123", min: 8 }]) // '11333232'
  */
-export function genChars(length: number, requirements: Requirement[]): string {
-  const filledReqs = [...requirements] as FilledRequirement[];
-
+export function genChars(
+  length: number,
+  requirements: readonly Requirement[],
+): string {
+  // Private copies: the caller's objects (including exported presets) are never touched.
+  const slots: Slot[] = [];
   let maxLength = 0;
   let minLength = 0;
   const result: string[] = [];
-  for (let i = 0; i < filledReqs.length; i++) {
-    const { max, min = 1, charSet } = filledReqs[i];
 
-    if (min < 0) {
+  for (let i = 0; i < requirements.length; i++) {
+    const { charSet, min = 1, max: rawMax } = requirements[i];
+
+    if (typeof charSet !== "string") {
+      throw new TypeError(`charSet for [${i}] must be a string`);
+    }
+    const chars = [...charSet];
+    if (!chars.length) {
+      throw new RangeError(`charSet for [${i}] must not be empty`);
+    }
+    if (!Number.isInteger(min) || min < 0) {
       throw new RangeError(
-        `min for [${i}] (${charSet}) must be greater than 0, but received ${min}`,
+        `min for [${i}] (${charSet}) must be an integer greater than or equal to 0, but received ${min}`,
       );
     }
-
-    if (max && max < 0) {
+    if (rawMax !== undefined && (!Number.isInteger(rawMax) || rawMax < 0)) {
       throw new RangeError(
-        `max for [${i}] (${charSet}) must be greater than 0, but received ${max}`,
+        `max for [${i}] (${charSet}) must be an integer greater than or equal to 0, but received ${rawMax}`,
       );
     }
-
-    if (max && min > max) {
+    // A max of 0 means no limit, same as omitting it (kept for backward compatibility)
+    const max = rawMax === 0 ? undefined : rawMax;
+    if (max !== undefined && min > max) {
       throw new RangeError(
         `min (${min}) is greater than max (${max}) for [${i}] (${charSet})`,
       );
     }
 
-    filledReqs[i].used = 0;
-
-    maxLength = max ? maxLength + max : 255;
+    maxLength += max === undefined ? Infinity : max;
     minLength += min;
-
+    slots.push({ chars, max, used: min });
     for (let j = 0; j < min; j++) {
-      result.push(getRandom(charSet));
-      filledReqs[i].used++;
+      result.push(pick(chars));
     }
   }
 
@@ -87,14 +97,14 @@ export function genChars(length: number, requirements: Requirement[]): string {
   }
 
   while (result.length < length) {
-    const idx = getRandom(filledReqs.length);
-    const { max, used, charSet } = filledReqs[idx];
-    if (max && used >= max) {
-      filledReqs.splice(idx, 1);
-      continue;
-    }
-    filledReqs[idx].used++;
-    result.push(getRandom(charSet));
+    const open = slots.filter(({ max, used }) =>
+      max === undefined || used < max
+    );
+    // Weight each open set by its size so every pooled character is equally likely
+    let n = getRandom(open.reduce((sum, { chars }) => sum + chars.length, 0));
+    const slot = open.find(({ chars }) => (n -= chars.length) < 0)!;
+    slot.used++;
+    result.push(pick(slot.chars));
   }
 
   // Fisher-Yates
@@ -113,6 +123,10 @@ export function genChars(length: number, requirements: Requirement[]): string {
   return result.join("");
 }
 
+function pick(chars: string[]): string {
+  return chars[getRandom(chars.length)];
+}
+
 /**
  * Uses crypto.getRandomValues to derive a random number [0 - (input - 1)] or a random character from a string
  *
@@ -128,15 +142,23 @@ export function genChars(length: number, requirements: Requirement[]): string {
 export function getRandom<T extends number | string>(
   input: T,
 ): T extends number ? number : string {
-  let output: undefined | number | string;
-  const [randomVal] = crypto.getRandomValues(new Uint32Array(1));
-  const num = randomVal / (0xffffffff + 1);
-  if (typeof input === "number") {
-    output = Math.floor(num * input);
-  } else {
-    output = input[Math.floor(num * input.length)];
+  const chars = typeof input === "string" ? [...input] : null;
+  const n = chars ? chars.length : (input as number);
+  if (!Number.isInteger(n) || n < 1 || n > 2 ** 32) {
+    throw new RangeError(
+      `getRandom requires an integer from 1 to 2^32 or a non-empty string, but received ${
+        chars ? "an empty string" : input
+      }`,
+    );
   }
-  return output as T extends number ? number : string;
+  // Rejection sampling: discard draws from the uneven tail so each value is equally likely
+  const limit = 2 ** 32 - (2 ** 32 % n);
+  const buf = new Uint32Array(1);
+  do {
+    crypto.getRandomValues(buf);
+  } while (buf[0] >= limit);
+  const idx = buf[0] % n;
+  return (chars ? chars[idx] : idx) as T extends number ? number : string;
 }
 
 const lowercaseLetters = "abcdefghijklmnopqrstuvwxyz";
