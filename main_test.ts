@@ -433,3 +433,39 @@ Deno.test("level3() matches level3 chars", () => {
     assert(included);
   }
 });
+
+Deno.test("getRandom() rejects biased draws (rejection sampling)", () => {
+  const original = crypto.getRandomValues;
+  const draws = [0xffffffff, 4];
+  let calls = 0;
+  Object.defineProperty(crypto, "getRandomValues", {
+    configurable: true,
+    value: (arr: Uint32Array) => {
+      arr[0] = draws[calls++];
+      return arr;
+    },
+  });
+  try {
+    // limit is 2^32 - 1, so 0xffffffff is rejected and 4 % 3 === 1
+    assertEquals(getRandom(3), 1);
+    assertEquals(calls, 2);
+  } finally {
+    Object.defineProperty(crypto, "getRandomValues", {
+      configurable: true,
+      value: original,
+    });
+  }
+});
+
+Deno.test("getRandom() throws on invalid input", () => {
+  for (const bad of [0, -1, 1.5, NaN, 2 ** 32 + 1]) {
+    assertThrows(() => getRandom(bad), RangeError);
+  }
+  assertThrows(() => getRandom(""), RangeError);
+});
+
+Deno.test("getRandom() edge values", () => {
+  assertEquals(getRandom(1), 0);
+  assert(getRandom(2 ** 32) < 2 ** 32);
+  assertEquals(getRandom("😀"), "😀");
+});

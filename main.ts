@@ -128,15 +128,23 @@ export function genChars(length: number, requirements: Requirement[]): string {
 export function getRandom<T extends number | string>(
   input: T,
 ): T extends number ? number : string {
-  let output: undefined | number | string;
-  const [randomVal] = crypto.getRandomValues(new Uint32Array(1));
-  const num = randomVal / (0xffffffff + 1);
-  if (typeof input === "number") {
-    output = Math.floor(num * input);
-  } else {
-    output = input[Math.floor(num * input.length)];
+  const chars = typeof input === "string" ? [...input] : null;
+  const n = chars ? chars.length : (input as number);
+  if (!Number.isInteger(n) || n < 1 || n > 2 ** 32) {
+    throw new RangeError(
+      `getRandom requires an integer from 1 to 2^32 or a non-empty string, but received ${
+        chars ? "an empty string" : input
+      }`,
+    );
   }
-  return output as T extends number ? number : string;
+  // Rejection sampling: discard draws from the uneven tail so each value is equally likely
+  const limit = 2 ** 32 - (2 ** 32 % n);
+  const buf = new Uint32Array(1);
+  do {
+    crypto.getRandomValues(buf);
+  } while (buf[0] >= limit);
+  const idx = buf[0] % n;
+  return (chars ? chars[idx] : idx) as T extends number ? number : string;
 }
 
 const lowercaseLetters = "abcdefghijklmnopqrstuvwxyz";
