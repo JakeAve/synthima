@@ -28,7 +28,7 @@ Deno.test("getRandom() will return binary", () => {
 
   const actual = new Set();
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 200; i++) {
     actual.add(getRandom(2));
   }
 
@@ -131,19 +131,19 @@ Deno.test("genChars() different mins", () => {
 
   const lowerExp = new RegExp(`[${lowercase}]`, "g");
 
-  assert(pass.match(lowerExp)?.length || 0 > 1);
+  assert((pass.match(lowerExp)?.length ?? 0) >= 1);
 
   const upperExp = new RegExp(`[${uppercase}]`, "g");
 
-  assert(pass.match(upperExp)?.length || 0 > 2);
+  assert((pass.match(upperExp)?.length ?? 0) >= 2);
 
   const symbolExp = new RegExp(`[\!\@\#\$\%\^\&\*]`, "g");
 
-  assert(pass.match(symbolExp)?.length || 0 > 3);
+  assert((pass.match(symbolExp)?.length ?? 0) >= 3);
 
   const numberExp = new RegExp(`[${numbers}]`, "g");
 
-  assert(pass.match(numberExp)?.length || 0 > 4);
+  assert((pass.match(numberExp)?.length ?? 0) >= 4);
 });
 
 Deno.test("genChars() maxes", () => {
@@ -162,7 +162,7 @@ Deno.test("genChars() maxes", () => {
 
   const lowerExp = new RegExp(`[${lowercase}]`, "g");
 
-  assert(pass.match(lowerExp)?.length || 0 > 1);
+  assert((pass.match(lowerExp)?.length ?? 0) >= 1);
 
   const upperExp = new RegExp(`[${uppercase}]`, "g");
 
@@ -274,7 +274,7 @@ Deno.test("genChars() will throw error when min > max", () => {
 
 Deno.test("genChars() min and max range will vary", () => {
   const numbers = "0123456789";
-  const letters = "abcdefghijklmnopqrstuvwxyz";
+  const letters = "abcdefghij";
 
   // with no max, expect 1,2,3,4 numbers
   const expectedNumMatches = new Set([1, 2, 3, 4]);
@@ -291,7 +291,7 @@ Deno.test("genChars() min and max range will vary", () => {
 
 Deno.test("genChars() min and max range will vary 2", () => {
   const numbers = "0123456789";
-  const letters = "abcdefghijklmnopqrstuvwxyz";
+  const letters = "abcdefghij";
 
   const expectedNumMatches = new Set([2, 3, 4, 5, 6, 7, 8]);
   const actualNumMatches = new Set();
@@ -374,7 +374,7 @@ Deno.test("genChars() has a good distribution - 1000", () => {
 
   const set = new Set();
 
-  for (let i = 0; i < 10000; i++) {
+  for (let i = 0; i < 30000; i++) {
     const char = genChars(3, [{ charSet: numbers, min: 1 }]);
     assertEquals(char.length, 3);
     set.add(char);
