@@ -72,7 +72,7 @@ const maxs = (args.x || args.max || []) as number[];
 let reqs: Requirement[] = [];
 
 for (const [idx, s] of sets.entries()) {
-  const min = mins[idx] || 1;
+  const min = mins[idx] ?? 1;
 
   const req: Requirement = {
     charSet: String(s),

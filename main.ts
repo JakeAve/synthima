@@ -11,7 +11,9 @@ export interface Requirement {
   max?: number;
 }
 
-interface FilledRequirement extends Requirement {
+interface Slot {
+  chars: string[];
+  max: number | undefined;
   used: number;
 }
 
@@ -36,41 +38,47 @@ interface FilledRequirement extends Requirement {
  * @example
  * genChars(8, [{ charSet: "abc", min: 0 }, { charSet: "123", min: 8 }]) // '11333232'
  */
-export function genChars(length: number, requirements: Requirement[]): string {
-  const filledReqs = [...requirements] as FilledRequirement[];
-
+export function genChars(
+  length: number,
+  requirements: readonly Requirement[],
+): string {
+  // Private copies: the caller's objects (including exported presets) are never touched.
+  const slots: Slot[] = [];
   let maxLength = 0;
   let minLength = 0;
   const result: string[] = [];
-  for (let i = 0; i < filledReqs.length; i++) {
-    const { max, min = 1, charSet } = filledReqs[i];
 
-    if (min < 0) {
+  for (let i = 0; i < requirements.length; i++) {
+    const { charSet, min = 1, max } = requirements[i];
+
+    if (typeof charSet !== "string") {
+      throw new TypeError(`charSet for [${i}] must be a string`);
+    }
+    const chars = [...charSet];
+    if (!chars.length) {
+      throw new RangeError(`charSet for [${i}] must not be empty`);
+    }
+    if (!Number.isInteger(min) || min < 0) {
       throw new RangeError(
-        `min for [${i}] (${charSet}) must be greater than 0, but received ${min}`,
+        `min for [${i}] (${charSet}) must be an integer greater than or equal to 0, but received ${min}`,
       );
     }
-
-    if (max && max < 0) {
+    if (max !== undefined && (!Number.isInteger(max) || max < 0)) {
       throw new RangeError(
-        `max for [${i}] (${charSet}) must be greater than 0, but received ${max}`,
+        `max for [${i}] (${charSet}) must be an integer greater than or equal to 0, but received ${max}`,
       );
     }
-
-    if (max && min > max) {
+    if (max !== undefined && min > max) {
       throw new RangeError(
         `min (${min}) is greater than max (${max}) for [${i}] (${charSet})`,
       );
     }
 
-    filledReqs[i].used = 0;
-
-    maxLength = max ? maxLength + max : 255;
+    maxLength += max === undefined ? Infinity : max;
     minLength += min;
-
+    slots.push({ chars, max, used: min });
     for (let j = 0; j < min; j++) {
-      result.push(getRandom(charSet));
-      filledReqs[i].used++;
+      result.push(pick(chars));
     }
   }
 
@@ -87,14 +95,12 @@ export function genChars(length: number, requirements: Requirement[]): string {
   }
 
   while (result.length < length) {
-    const idx = getRandom(filledReqs.length);
-    const { max, used, charSet } = filledReqs[idx];
-    if (max && used >= max) {
-      filledReqs.splice(idx, 1);
-      continue;
-    }
-    filledReqs[idx].used++;
-    result.push(getRandom(charSet));
+    const open = slots.filter(({ max, used }) =>
+      max === undefined || used < max
+    );
+    const slot = open[getRandom(open.length)];
+    slot.used++;
+    result.push(pick(slot.chars));
   }
 
   // Fisher-Yates
@@ -111,6 +117,10 @@ export function genChars(length: number, requirements: Requirement[]): string {
   }
 
   return result.join("");
+}
+
+function pick(chars: string[]): string {
+  return chars[getRandom(chars.length)];
 }
 
 /**

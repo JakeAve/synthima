@@ -3,6 +3,7 @@ import {
   genChars,
   getRandom,
   letters,
+  lettersCharSet,
   level1,
   level1CharSet,
   level2,
@@ -10,6 +11,7 @@ import {
   level3,
   level3CharSet,
   numbers,
+  numbersCharSet,
 } from "./main.ts";
 
 Deno.test("getRandom() will return all integers", () => {
@@ -230,7 +232,7 @@ Deno.test("genChars() will throw error for a min < 0", () => {
         { charSet: numbers, min: 1 },
       ]),
     RangeError,
-    "min for [2] (!@#$%^&*) must be greater than 0, but received -1",
+    "min for [2] (!@#$%^&*) must be an integer greater than or equal to 0, but received -1",
   );
 });
 
@@ -249,7 +251,7 @@ Deno.test("genChars() will throw error for a max < 0", () => {
         { charSet: numbers, min: 1, max: -2 },
       ]),
     RangeError,
-    "max for [3] (0123456789) must be greater than 0, but received -2",
+    "max for [3] (0123456789) must be an integer greater than or equal to 0, but received -2",
   );
 });
 
@@ -309,27 +311,120 @@ Deno.test("genChars() min and max range will vary 2", () => {
 });
 
 Deno.test("genChars() does not edit the argument array", () => {
-  const numbers = "0123456789";
-  const letters = "abcdefghijklmnopqrstuvwxyz";
-
   const requirements = [
-    { charSet: numbers, min: 2, max: 8 },
-    { charSet: letters, min: 1, max: 1 },
+    { charSet: "0123456789", min: 2, max: 8 },
+    { charSet: "abcdefghijklmnopqrstuvwxyz", min: 1, max: 1 },
   ];
-
-  const clone = [...requirements];
-
-  const passes: string[] = [];
+  const snapshot = structuredClone(requirements);
 
   for (let i = 0; i < 100; i++) {
-    passes.push(genChars(8, requirements));
+    assert(/\d/.test(genChars(8, requirements)));
   }
 
-  assertEquals(requirements, clone);
+  assertEquals(requirements, snapshot);
+});
 
-  for (const pass of passes) {
-    assert(/\d{1}/.test(pass));
+Deno.test("genChars() does not edit the exported presets", () => {
+  const presets = {
+    letters: lettersCharSet,
+    numbers: numbersCharSet,
+    level1: level1CharSet,
+    level2: level2CharSet,
+    level3: level3CharSet,
+  };
+  const snapshot = structuredClone(presets);
+
+  letters();
+  numbers();
+  level1();
+  level2();
+  level3();
+  for (const preset of Object.values(presets)) genChars(20, preset);
+
+  assertEquals(presets, snapshot);
+});
+
+Deno.test("genChars() accepts frozen requirements", () => {
+  const requirements = Object.freeze([
+    Object.freeze({ charSet: "abc", min: 1, max: 5 }),
+    Object.freeze({ charSet: "123" }),
+  ]);
+  assertEquals(genChars(6, requirements).length, 6);
+});
+
+Deno.test("genChars() counts length in code points", () => {
+  const pass = genChars(40, [{ charSet: "😀😁😂" }]);
+  assert(pass.isWellFormed());
+  assertEquals([...pass].length, 40);
+  for (const char of pass) assert("😀😁😂".includes(char));
+});
+
+Deno.test("genChars() min/max count code points", () => {
+  const pass = genChars(8, [
+    { charSet: "😀", min: 3, max: 3 },
+    { charSet: "ab" },
+  ]);
+  assertEquals([...pass].filter((c) => c === "😀").length, 3);
+  assertEquals([...pass].length, 8);
+});
+
+Deno.test("genChars() throws on an empty or invalid charSet", () => {
+  assertThrows(
+    () => genChars(3, [{ charSet: "" }, { charSet: "ab" }]),
+    RangeError,
+    "must not be empty",
+  );
+  assertThrows(
+    () => genChars(3, [{ charSet: "", min: 0 }, { charSet: "ab" }]),
+    RangeError,
+    "must not be empty",
+  );
+  assertThrows(
+    () => genChars(3, [{ charSet: 123 as unknown as string }]),
+    TypeError,
+  );
+});
+
+Deno.test("genChars() allows lengths over 255 with unbounded sets", () => {
+  assertEquals(genChars(300, [{ charSet: "ab" }]).length, 300);
+  assertEquals(
+    genChars(300, [{ charSet: "a", max: 2 }, { charSet: "b" }]).length,
+    300,
+  );
+  assertEquals(
+    genChars(300, [{ charSet: "b" }, { charSet: "a", max: 2 }]).length,
+    300,
+  );
+});
+
+Deno.test("genChars() max: 0 excludes a set", () => {
+  for (let i = 0; i < 200; i++) {
+    const pass = genChars(10, [
+      { charSet: "abc", min: 0, max: 0 },
+      { charSet: "123" },
+    ]);
+    assert(!/[abc]/.test(pass));
   }
+});
+
+Deno.test("genChars() validates min and max", () => {
+  assertThrows(
+    () => genChars(4, [{ charSet: "abc", max: 0 }, { charSet: "123" }]),
+    RangeError,
+    "min (1) is greater than max (0)",
+  );
+  assertThrows(
+    () => genChars(4, [{ charSet: "abc", min: 1.5 }]),
+    RangeError,
+  );
+  assertThrows(
+    () => genChars(4, [{ charSet: "abc", max: NaN }]),
+    RangeError,
+  );
+  assertThrows(
+    () => genChars(4, [{ charSet: "abc", max: -1 }]),
+    RangeError,
+  );
 });
 
 Deno.test("genChars() will randomly shuffle", () => {
