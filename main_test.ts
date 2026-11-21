@@ -564,3 +564,77 @@ Deno.test("getRandom() edge values", () => {
   assert(getRandom(2 ** 32) < 2 ** 32);
   assertEquals(getRandom("😀"), "😀");
 });
+
+function shares(
+  preset: readonly { charSet: string }[],
+  buckets: Record<string, (c: number) => boolean>,
+) {
+  const reqs = preset.map((r) => ({ charSet: r.charSet, min: 0 }));
+  const counts: Record<string, number> = {};
+  let total = 0;
+  for (let i = 0; i < 500; i++) {
+    for (const char of genChars(100, reqs)) {
+      const cp = char.codePointAt(0)!;
+      for (const [name, test] of Object.entries(buckets)) {
+        if (test(cp)) counts[name] = (counts[name] ?? 0) + 1;
+      }
+      total++;
+    }
+  }
+  return Object.fromEntries(
+    Object.keys(buckets).map((k) => [k, (counts[k] ?? 0) / total]),
+  );
+}
+
+function assertShares(
+  actual: Record<string, number>,
+  expected: Record<string, number>,
+) {
+  // 50,000 draws: std error <= 0.0022, so 0.02 is ~9 sigma
+  for (const [name, want] of Object.entries(expected)) {
+    assert(
+      Math.abs(actual[name] - want) < 0.02,
+      `${name}: expected ~${want}, got ${actual[name]}`,
+    );
+  }
+}
+
+Deno.test("genChars() filler is uniform over the pooled characters - level3", () => {
+  // 668 chars: 92 ascii, 64 diacritics1, 256 diacritics2, 256 extended
+  assertShares(
+    shares(level3CharSet, {
+      ascii: (c) => c < 0x80,
+      diacritics1: (c) => c >= 0xc0 && c <= 0xff,
+      diacritics2: (c) => c >= 0x100 && c <= 0x1ff,
+      extended: (c) => c >= 0x200 && c <= 0x2ff,
+    }),
+    {
+      ascii: 92 / 668,
+      diacritics1: 64 / 668,
+      diacritics2: 256 / 668,
+      extended: 256 / 668,
+    },
+  );
+});
+
+Deno.test("genChars() filler is uniform over the pooled characters - level1", () => {
+  // 70 chars: 26 + 26 letters, 10 digits, 8 symbols
+  assertShares(
+    shares(level1CharSet, {
+      digits: (c) => c >= 0x30 && c <= 0x39,
+      symbols: (c) => "!@#$%^&*".includes(String.fromCodePoint(c)),
+    }),
+    { digits: 10 / 70, symbols: 8 / 70 },
+  );
+});
+
+Deno.test("genChars() weighting still respects max", () => {
+  for (let i = 0; i < 200; i++) {
+    const pass = genChars(10, [
+      { charSet: "abcdefghijklmnopqrstuvwxyz", min: 0, max: 2 },
+      { charSet: "1" },
+    ]);
+    assert((pass.match(/[a-z]/g)?.length ?? 0) <= 2);
+    assertEquals(pass.length, 10);
+  }
+});

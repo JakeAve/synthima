@@ -98,7 +98,9 @@ export function genChars(
     const open = slots.filter(({ max, used }) =>
       max === undefined || used < max
     );
-    const slot = open[getRandom(open.length)];
+    // Weight each open set by its size so every pooled character is equally likely
+    let n = getRandom(open.reduce((sum, { chars }) => sum + chars.length, 0));
+    const slot = open.find(({ chars }) => (n -= chars.length) < 0)!;
     slot.used++;
     result.push(pick(slot.chars));
   }
