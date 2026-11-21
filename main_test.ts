@@ -397,22 +397,21 @@ Deno.test("genChars() allows lengths over 255 with unbounded sets", () => {
   );
 });
 
-Deno.test("genChars() max: 0 excludes a set", () => {
+Deno.test("genChars() max: 0 means no limit, same as omitting max", () => {
+  let most = 0;
   for (let i = 0; i < 200; i++) {
     const pass = genChars(10, [
-      { charSet: "abc", min: 0, max: 0 },
+      { charSet: "abc", min: 1, max: 0 },
       { charSet: "123" },
     ]);
-    assert(!/[abc]/.test(pass));
+    assertEquals(pass.length, 10);
+    most = Math.max(most, pass.match(/[abc]/g)?.length ?? 0);
   }
+  assert(most > 1);
+  assertEquals(genChars(300, [{ charSet: "a", max: 0 }]).length, 300);
 });
 
 Deno.test("genChars() validates min and max", () => {
-  assertThrows(
-    () => genChars(4, [{ charSet: "abc", max: 0 }, { charSet: "123" }]),
-    RangeError,
-    "min (1) is greater than max (0)",
-  );
   assertThrows(
     () => genChars(4, [{ charSet: "abc", min: 1.5 }]),
     RangeError,

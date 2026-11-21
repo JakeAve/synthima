@@ -3,7 +3,7 @@
  *
  * @property {string} charSet - A string of characters
  * @property {number|undefined} [min = 1] - The minimum instances one of the characters from the charSet may appear
- * @property {number|undefined} [max = undefined] - The maximum instances one of the characters from the charSet may appear
+ * @property {number|undefined} [max = undefined] - The maximum instances one of the characters from the charSet may appear. 0 is the same as omitting it (no limit)
  */
 export interface Requirement {
   charSet: string;
@@ -49,7 +49,7 @@ export function genChars(
   const result: string[] = [];
 
   for (let i = 0; i < requirements.length; i++) {
-    const { charSet, min = 1, max } = requirements[i];
+    const { charSet, min = 1, max: rawMax } = requirements[i];
 
     if (typeof charSet !== "string") {
       throw new TypeError(`charSet for [${i}] must be a string`);
@@ -63,11 +63,13 @@ export function genChars(
         `min for [${i}] (${charSet}) must be an integer greater than or equal to 0, but received ${min}`,
       );
     }
-    if (max !== undefined && (!Number.isInteger(max) || max < 0)) {
+    if (rawMax !== undefined && (!Number.isInteger(rawMax) || rawMax < 0)) {
       throw new RangeError(
-        `max for [${i}] (${charSet}) must be an integer greater than or equal to 0, but received ${max}`,
+        `max for [${i}] (${charSet}) must be an integer greater than or equal to 0, but received ${rawMax}`,
       );
     }
+    // A max of 0 means no limit, same as omitting it (kept for backward compatibility)
+    const max = rawMax === 0 ? undefined : rawMax;
     if (max !== undefined && min > max) {
       throw new RangeError(
         `min (${min}) is greater than max (${max}) for [${i}] (${charSet})`,

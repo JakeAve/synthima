@@ -44,8 +44,8 @@ How characters are chosen:
   sets that haven't reached their `max`. A big set is therefore proportionally
   more likely than a small one. A character listed in two sets gets double
   weight, which is how you bias toward it.
-- `max: 0` excludes a set (write `min: 0, max: 0`; the default `min` of 1 would
-  throw). An empty `charSet` throws a `RangeError`.
+- `max: 0` is the same as omitting `max` (no limit). An empty `charSet` throws a
+  `RangeError`.
 - `length`, `min` and `max` count code points, not UTF-16 units.
 - The requirements you pass in are never modified.
 
